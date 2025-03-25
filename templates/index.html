@@ -1,3 +1,4 @@
+\templates\index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phishing Website Detection</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='static/css/style.css') }}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
@@ -193,14 +194,30 @@
                             const featureTable = $('#feature-table');
                             featureTable.empty();
                             
-                            // First display critical features if any were found
+                            // Display features with appropriate color coding
                             response.features.forEach(function(feature) {
-                                // Highlight critical features if their value is suspicious
                                 let rowClass = '';
-                                if (criticalIndicators.includes(feature.name) && feature.value === 1) {
+                                let isSuspicious = false;
+                                
+                                // Determine if feature indicates suspicious behavior
+                                if (goodWhenZero.includes(feature.name)) {
+                                    // For features that are good when 0, they are suspicious when 1
+                                    isSuspicious = (feature.value === 1);
+                                } else if (goodWhenOne.includes(feature.name)) {
+                                    // For features that are good when 1, they are suspicious when 0
+                                    isSuspicious = (feature.value === 0);
+                                }
+                                
+                                // Critical suspicious features get red background
+                                if (criticalIndicators.includes(feature.name) && isSuspicious) {
                                     rowClass = 'table-danger';
-                                } else if ((goodWhenZero.includes(feature.name) && feature.value === 0) || 
-                                        (goodWhenOne.includes(feature.name) && feature.value === 1)) {
+                                }
+                                // Non-critical suspicious features get yellow/orange background
+                                else if (isSuspicious) {
+                                    rowClass = 'table-warning';
+                                }
+                                // Good features get green background
+                                else if (!isSuspicious && feature.name !== 'URL Depth') {
                                     rowClass = 'table-success';
                                 }
                                 

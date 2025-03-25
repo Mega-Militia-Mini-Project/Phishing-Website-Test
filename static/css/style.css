@@ -1,39 +1,99 @@
 body {
-    background-color: #f8f9fa;
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
 }
 
-.card {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    border: none;
+.container {
+    width: 80%;
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
-.card-header {
-    background-color: #343a40;
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #2c3e50;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background-color: #3498db;
     color: white;
-    padding: 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
 }
 
-#result-box {
-    transition: all 0.3s ease;
+button:hover {
+    background-color: #2980b9;
 }
 
-.form-control:focus {
-    border-color: #80bdff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+.result-box {
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 5px;
 }
 
-#loading {
-    padding: 2rem 0;
+.phishing {
+    background-color: #ffecec;
+    border-left: 5px solid #f44336;
 }
 
-.btn-primary {
-    background-color: #007bff;
+.legitimate {
+    background-color: #e8f5e9;
+    border-left: 5px solid #4caf50;
 }
 
-.btn-primary:hover {
-    background-color: #0069d9;
+.error-box {
+    background-color: #fff3cd;
+    padding: 15px;
+    border-left: 5px solid #ffc107;
+    border-radius: 4px;
 }
 
-#feature-table tr:hover {
-    background-color: #f1f1f1;
+.back-button {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #3498db;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.back-button:hover {
+    background-color: #2980b9;
 }
