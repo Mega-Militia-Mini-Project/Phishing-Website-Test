@@ -6,12 +6,32 @@ import traceback
 import os
 import logging
 import warnings
-import random  # Added for introducing randomness in confidence scores
+import random
+import requests
+import json
+from urllib.parse import urlparse
+import time
+from dotenv import load_dotenv
+
+# Import trusted domains
+from trusted_domains import is_trusted_domain, add_trusted_domain
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, 
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Load environment variables
+try:
+    load_dotenv()
+    logger.info("Environment variables loaded from .env file")
+except ImportError:
+    logger.warning("python-dotenv not installed. Using system environment variables.")
+
+# Get API key from environment variable
+SAFE_BROWSING_API_KEY = os.environ.get('SAFE_BROWSING_API_KEY')
+if not SAFE_BROWSING_API_KEY:
+    logger.warning("Safe Browsing API key not found. Real-time detection will be limited.")
 
 # Suppress specific warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -26,8 +46,7 @@ except ImportError:
     # Define a fallback feature extraction function
     def featureExtraction(url):
         logger.warning("Using fallback feature extraction - results may be inaccurate")
-        # Return default feature values (should match your model's expected features)
-        return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        return [0] * 16  # Return default values
 
 app = Flask(__name__)
 
@@ -39,29 +58,105 @@ def convert_to_json_serializable(obj):
         return float(obj)
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
-    elif isinstance(obj, (list, tuple)):
-        return [convert_to_json_serializable(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: convert_to_json_serializable(value) for key, value in obj.items()}
     else:
         return obj
 
-# Function to safely load the model
-def load_model(model_path):
+# Function to check URL against Google Safe Browsing API
+def check_safe_browsing(url):
+    if not SAFE_BROWSING_API_KEY:
+        logger.warning("Safe Browsing API key not available. Skipping check.")
+        return None
+    
     try:
-        if not os.path.exists(model_path):
-            logger.error(f"Model file not found at {model_path}")
-            raise FileNotFoundError(f"Model file not found at {model_path}")
+        api_url = 'https://safebrowsing.googleapis.com/v4/threatMatches:find'
+        
+        payload = {
+            'client': {
+                'clientId': 'phishing-detection-app',
+                'clientVersion': '1.0.0'
+            },
+            'threatInfo': {
+                'threatTypes': ['MALWARE', 'SOCIAL_ENGINEERING', 'UNWANTED_SOFTWARE', 'POTENTIALLY_HARMFUL_APPLICATION'],
+                'platformTypes': ['ANY_PLATFORM'],
+                'threatEntryTypes': ['URL'],
+                'threatEntries': [{'url': url}]
+            }
+        }
+        
+        params = {'key': SAFE_BROWSING_API_KEY}
+        
+        response = requests.post(api_url, params=params, json=payload)
+        
+        if response.status_code == 200:
+            result = response.json()
+            # If matches found, it's unsafe
+            if 'matches' in result and len(result['matches']) > 0:
+                threat_types = [match['threatType'] for match in result['matches']]
+                logger.info(f"URL {url} flagged by Safe Browsing API as: {', '.join(threat_types)}")
+                return {
+                    'safe': False,
+                    'threat_types': threat_types
+                }
+            else:
+                logger.info(f"URL {url} is safe according to Safe Browsing API")
+                return {'safe': True}
+        else:
+            logger.error(f"Safe Browsing API error: {response.status_code} - {response.text}")
+            return None
             
-        with open(model_path, 'rb') as file:
-            model = pickle.load(file)
-            logger.info(f"Model loaded successfully from {model_path}")
-            return model
     except Exception as e:
-        logger.error(f"Failed to load model: {str(e)}")
-        raise
+        logger.error(f"Error checking Safe Browsing API: {str(e)}")
+        return None
 
-# Load the model with error handling
+# Function to extract domain from URL
+def extract_domain(url):
+    try:
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+        return domain
+    except:
+        return url
+
+# Create cache for Safe Browsing results
+safe_browsing_cache = {}
+CACHE_TTL = 3600  # 1 hour in seconds
+
+# Function to check cache or call API
+def get_safe_browsing_result(url):
+    # Use domain as cache key to avoid slight URL variations
+    domain = extract_domain(url)
+    
+    # Check cache
+    current_time = time.time()
+    if domain in safe_browsing_cache:
+        cache_time, result = safe_browsing_cache[domain]
+        # If cache is still valid
+        if current_time - cache_time < CACHE_TTL:
+            logger.info(f"Using cached Safe Browsing result for {domain}")
+            return result
+    
+    # Call API
+    result = check_safe_browsing(url)
+    
+    # Cache result if we got one
+    if result is not None:
+        safe_browsing_cache[domain] = (current_time, result)
+    
+    return result
+
+# Function to format features for display
+def format_features_for_display(features):
+    feature_names = [
+        'Have IP Address', 'Have @ Symbol', 'URL Length', 'URL Depth', 
+        'Redirection', 'HTTPS in Domain', 'TinyURL', 'Prefix/Suffix',
+        'DNS Record', 'Web Traffic', 'Domain Age', 'Domain End', 
+        'iFrame', 'Mouse Over', 'Right Click', 'Web Forwards'
+    ]
+    
+    return [{'name': name, 'value': convert_to_json_serializable(value)} 
+            for name, value in zip(feature_names, features)]
+
+# Load the model
 try:
     # Ensure models directory exists
     if not os.path.exists('models'):
@@ -69,12 +164,14 @@ try:
         os.makedirs('models')
         
     model_file = 'models/XGBoostClassifier.pickle.dat'
-    model = load_model(model_file)
+    
+    with open(model_file, 'rb') as file:
+        model = pickle.load(file)
+        logger.info(f"Model loaded successfully from {model_file}")
 except Exception as e:
     logger.error(f"Model loading failed: {str(e)}")
     model = None
-    
-# Route for home page
+
 @app.route('/')
 def home():
     # Check if model is loaded
@@ -83,7 +180,6 @@ def home():
                               error="Model is not loaded. Please check server logs.")
     return render_template('index.html')
 
-# Route for URL prediction
 @app.route('/predict', methods=['POST'])
 def predict():
     if model is None:
@@ -112,7 +208,48 @@ def predict():
         
         logger.info(f"Processing URL: {url}")
         
-        # Extract features with logging
+        # Check if domain is trusted
+        if is_trusted_domain(url):
+            logger.info(f"URL {url} is in trusted domains list")
+            
+            # Still extract features for display
+            try:
+                features = featureExtraction(url)
+                feature_info = format_features_for_display(features)
+            except:
+                feature_info = []
+                
+            return jsonify({
+                'success': True,
+                'url': url,
+                'is_phishing': False,
+                'confidence': 99.5,
+                'features': feature_info,
+                'source': 'Trusted Domain',
+                'trusted': True
+            })
+        
+        # Check against Google Safe Browsing API
+        safe_browsing_result = get_safe_browsing_result(url)
+        if safe_browsing_result and not safe_browsing_result['safe']:
+            logger.warning(f"URL {url} is flagged as unsafe by Google Safe Browsing")
+            
+            # Get threat types for display
+            threat_types = safe_browsing_result.get('threat_types', ['Unknown threat'])
+            threat_description = ', '.join(threat_types)
+            
+            # For unsafe URLs, return immediate response
+            return jsonify({
+                'success': True,
+                'url': url,
+                'is_phishing': True,
+                'confidence': 98.5,  # High confidence for Safe Browsing matches
+                'features': [],  # No need for detailed features
+                'source': 'Google Safe Browsing',
+                'threat_description': threat_description
+            })
+        
+        # Extract features
         try:
             features = featureExtraction(url)
             logger.info(f"Features extracted: {features}")
@@ -126,73 +263,44 @@ def predict():
         # Convert to numpy array for prediction
         features_array = np.array(features).reshape(1, -1)
         
-        # Make prediction with error handling
-        try:
-            # Get the raw prediction
-            prediction = model.predict(features_array)[0]
-            # Convert to standard Python type
-            prediction = convert_to_json_serializable(prediction)
-            logger.info(f"Raw prediction result: {prediction}")
-            
-            # CORRECTED: In most phishing datasets, 0=legitimate, 1=phishing
-            is_phishing = bool(prediction == 1)
-            logger.info(f"Interpreted as phishing: {is_phishing}")
-            
-        except Exception as pred_err:
-            logger.error(f"Prediction error: {str(pred_err)}")
-            return jsonify({
-                'success': False,
-                'error': f'Error making prediction: {str(pred_err)}'
-            })
+        # Make prediction
+        prediction = model.predict(features_array)[0]
+        prediction = convert_to_json_serializable(prediction)
         
-        # Get confidence score (probability)
+        # In most phishing datasets, 0=legitimate, 1=phishing
+        is_phishing = bool(prediction == 1)
+        
+        # Get confidence score
         try:
             confidence = model.predict_proba(features_array)[0]
-            # Get probability for the predicted class
-            raw_confidence_score = confidence[1] if is_phishing else confidence[0]
+            raw_confidence = confidence[1] if is_phishing else confidence[0]
             
-            # Create a unique hash for this URL to ensure consistent confidence scores
-            url_hash = sum(ord(c) for c in url) % 1000
+            # Adjust confidence based on Safe Browsing result
+            if safe_browsing_result is not None:
+                if safe_browsing_result['safe'] and is_phishing:
+                    # Model says phishing but Safe Browsing says safe
+                    raw_confidence = max(raw_confidence * 0.9, 0.51)
             
-            # Use the hash to determine a confidence score between 85-95%
-            min_confidence = 85
-            max_confidence = 95
+            # Generate a confidence percentage
+            confidence_percentage = 85 + ((raw_confidence - 0.5) * 30)
+            confidence_percentage = min(max(confidence_percentage, 85), 95)
+            confidence_percentage = round(confidence_percentage, 1)
             
-            # Generate a base confidence score from the URL hash
-            base_confidence = min_confidence + ((url_hash / 1000.0) * (max_confidence - min_confidence))
-            
-            # Add small random variation (±0.5%) for natural feel
-            random_factor = random.uniform(-0.5, 0.5)
-            
-            # Calculate final confidence score, ensuring it stays within range
-            confidence_percentage = min(max(base_confidence + random_factor, min_confidence), max_confidence)
-            confidence_percentage = round(confidence_percentage, 2)
-            
-            logger.info(f"Raw confidence: {raw_confidence_score*100}%, Adjusted confidence: {confidence_percentage}%")
         except Exception as prob_err:
             logger.error(f"Error calculating probability: {str(prob_err)}")
-            confidence_percentage = 89.5  # Default to a moderate confidence within our range
+            confidence_percentage = 89.5  # Default confidence
         
-        # Prepare feature names for displaying
-        feature_names = [
-            'Have IP Address', 'Have @ Symbol', 'URL Length', 'URL Depth', 
-            'Redirection', 'HTTPS in Domain', 'TinyURL', 'Prefix/Suffix',
-            'DNS Record', 'Web Traffic', 'Domain Age', 'Domain End', 
-            'iFrame', 'Mouse Over', 'Right Click', 'Web Forwards'
-        ]
-        
-        # Create feature info for display - convert all values to regular Python types
-        feature_info = [
-            {'name': name, 'value': convert_to_json_serializable(value)} 
-            for name, value in zip(feature_names, features)
-        ]
+        # Format features for display
+        feature_info = format_features_for_display(features)
         
         result = {
             'success': True,
             'url': url,
-            'is_phishing': is_phishing,  # CORRECTED: Using the properly interpreted value
+            'is_phishing': is_phishing,
             'confidence': confidence_percentage,
-            'features': feature_info
+            'features': feature_info,
+            'source': 'Safe Browsing + ML Model' if safe_browsing_result else 'ML Model',
+            'trusted': False
         }
         
         return jsonify(result)
@@ -205,7 +313,6 @@ def predict():
             'error': f'Error analyzing URL: {str(e)}'
         })
 
-# API endpoint for programmatic access
 @app.route('/api/check', methods=['POST'])
 def api_check():
     if model is None:
@@ -238,48 +345,55 @@ def api_check():
                 'success': False,
                 'error': 'Invalid URL format'
             })
+            
+        # Check if in trusted domains
+        if is_trusted_domain(url):
+            logger.info(f"API request: URL {url} is in trusted domains list")
+            return jsonify({
+                'success': True,
+                'url': url,
+                'is_phishing': False,
+                'confidence': 99.5,
+                'source': 'Trusted Domain',
+                'trusted': True
+            })
         
-        # Extract features
+        # Check against Google Safe Browsing API
+        safe_browsing_result = get_safe_browsing_result(url)
+        if safe_browsing_result and not safe_browsing_result['safe']:
+            logger.warning(f"API request: URL {url} is flagged as unsafe by Google Safe Browsing")
+            
+            # For unsafe URLs, return immediate response
+            return jsonify({
+                'success': True,
+                'url': url,
+                'is_phishing': True,
+                'confidence': 98.5,
+                'source': 'Google Safe Browsing',
+                'threat_types': safe_browsing_result.get('threat_types', ['Unknown threat'])
+            })
+            
+        # Follow similar logic as predict route for ML model
         features = featureExtraction(url)
-        
-        # Convert to numpy array for prediction
         features_array = np.array(features).reshape(1, -1)
-        
-        # Make prediction
-        prediction = model.predict(features_array)[0]
-        prediction = convert_to_json_serializable(prediction)
-        
-        # CORRECTED: In most phishing datasets, 0=legitimate, 1=phishing
+        prediction = convert_to_json_serializable(model.predict(features_array)[0])
         is_phishing = bool(prediction == 1)
         
-        # Get confidence score with adjustment
+        # Calculate confidence
         confidence = model.predict_proba(features_array)[0]
-        raw_confidence_score = confidence[1] if is_phishing else confidence[0]
-        
-        # Use the same confidence calculation as in predict route
-        url_hash = sum(ord(c) for c in url) % 1000
-        
-        # Use the hash to determine a confidence score between 85-95%
-        min_confidence = 85
-        max_confidence = 95
-        
-        # Generate a base confidence score from the URL hash
-        base_confidence = min_confidence + ((url_hash / 1000.0) * (max_confidence - min_confidence))
-        
-        # Add small random variation (±0.5%) for natural feel
-        random_factor = random.uniform(-0.5, 0.5)
-        
-        # Calculate final confidence score, ensuring it stays within range
-        confidence_percentage = min(max(base_confidence + random_factor, min_confidence), max_confidence)
-        confidence_percentage = round(confidence_percentage, 2)
+        confidence_percentage = 85 + ((confidence[1] if is_phishing else confidence[0] - 0.5) * 30)
+        confidence_percentage = min(max(confidence_percentage, 85), 95)
+        confidence_percentage = round(confidence_percentage, 1)
         
         return jsonify({
             'success': True,
             'url': url,
             'is_phishing': is_phishing,
-            'confidence': confidence_percentage
+            'confidence': confidence_percentage,
+            'source': 'Safe Browsing + ML Model' if safe_browsing_result else 'ML Model',
+            'trusted': False
         })
-    
+        
     except Exception as e:
         logger.error(f"API error: {str(e)}")
         logger.error(traceback.format_exc())
@@ -288,92 +402,57 @@ def api_check():
             'error': f'Error analyzing URL: {str(e)}'
         })
 
-# Health check endpoint
+# New endpoint to add URL to trusted domains
+@app.route('/api/trust', methods=['POST'])
+def trust_url():
+    try:
+        data = request.get_json()
+        
+        if not data or 'url' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'URL not provided'
+            })
+            
+        url = data.get('url')
+        
+        if not validators.url(url):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid URL format'
+            })
+            
+        # Try to add to trusted domains
+        result = add_trusted_domain(url)
+        
+        if result:
+            logger.info(f"Added {url} to trusted domains")
+            return jsonify({
+                'success': True,
+                'message': f'Added domain to trusted list'
+            })
+        else:
+            logger.info(f"Domain {url} is already trusted or couldn't be added")
+            return jsonify({
+                'success': False,
+                'error': 'Domain is already trusted or could not be added'
+            })
+            
+    except Exception as e:
+        logger.error(f"Trust URL error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error processing request: {str(e)}'
+        })
+
 @app.route('/health', methods=['GET'])
 def health_check():
-    if model is None:
-        return jsonify({
-            'status': 'error',
-            'message': 'Model not loaded'
-        }), 500
     return jsonify({
         'status': 'healthy',
-        'message': 'Service is running'
+        'model_loaded': model is not None,
+        'safe_browsing': 'enabled' if SAFE_BROWSING_API_KEY else 'disabled'
     })
 
-# Error handlers
-@app.errorhandler(404)
-def page_not_found(e):
-    return jsonify({'error': 'Not Found', 'message': 'The requested resource was not found'}), 404
-
-@app.errorhandler(500)
-def internal_server_error(e):
-    return jsonify({'error': 'Internal Server Error', 'message': 'An unexpected error occurred'}), 500
-
-# Create a template for error page
-@app.route('/create_error_template')
-def create_error_template():
-    error_html = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Error - Phishing Website Detection</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
-    </head>
-    <body>
-        <div class="container">
-            <div class="row justify-content-center mt-5">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header text-center bg-danger text-white">
-                            <h2>Error</h2>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-danger">
-                                <p>{{ error }}</p>
-                            </div>
-                            <div class="text-center">
-                                <a href="/" class="btn btn-primary">Go Home</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    # Create templates directory if it doesn't exist
-    if not os.path.exists('templates'):
-        os.makedirs('templates')
-    # Write the error template
-    with open('templates/error.html', 'w') as f:
-        f.write(error_html)
-    return "Error template created successfully."
-
 if __name__ == '__main__':
-    # Create error template if it doesn't exist
-    if not os.path.exists('templates/error.html'):
-        with app.app_context():
-            create_error_template()
-            
-    # Create templates directory if not exists
-    if not os.path.exists('templates'):
-        os.makedirs('templates')
-        logger.info("Created templates directory")
-        
-    # Create static directory if not exists
-    if not os.path.exists('static/css'):
-        os.makedirs('static/css')
-        logger.info("Created static/css directory")
-    
-    # Check if model is loaded before starting the app
-    if model is None:
-        logger.critical("Cannot start application: Model failed to load")
-        print("ERROR: Model failed to load. Check logs for details.")
-    else:
-        # Run the Flask app
-        port = int(os.environ.get('PORT', 5000))
-        app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
