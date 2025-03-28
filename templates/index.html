@@ -1,4 +1,3 @@
-\templates\index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,54 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phishing Website Detection</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='static/css/style.css') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
     <div class="container">
         <div class="row justify-content-center mt-5">
-            <div class="col-md-8">
+            <div class="col-md-10">
                 <div class="card">
                     <div class="card-header text-center">
-                        <h2>Phishing Website Detection</h2>
-                        <p class="text-muted">Enter a URL to check if it's legitimate or phishing</p>
+                        <h2 class="mb-3"><i class="fas fa-shield-alt me-2"></i>Phishing Website Detection</h2>
+                        <p class="text-light mb-0">Enter a URL to check its authenticity and security status</p>
                     </div>
                     <div class="card-body">
                         <form id="url-form">
-                            <div class="input-group mb-3">
-                                <input type="url" class="form-control" id="url" name="url" 
+                            <div class="input-group mb-4">
+                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-link text-muted"></i></span>
+                                <input type="url" class="form-control border-start-0" id="url" name="url" 
                                        placeholder="Enter URL (e.g. https://example.com)" required>
                                 <button class="btn btn-primary" type="submit" id="submit-btn">
-                                    Check URL
+                                    <i class="fas fa-search me-2"></i>Analyze URL
                                 </button>
                             </div>
                         </form>
 
                         <div id="loading" class="text-center d-none">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                            <div class="loading-dots mb-3">
+                                <span style="animation-delay: 0s"></span>
+                                <span style="animation-delay: 0.2s"></span>
+                                <span style="animation-delay: 0.4s"></span>
                             </div>
-                            <p class="mt-2">Analyzing URL... This may take a moment.</p>
+                            <p class="text-muted">Scanning URL for security threats...</p>
                         </div>
 
                         <div id="result-box" class="mt-4 d-none">
-                            <h4>Results for: <span id="result-url" class="text-break"></span></h4>
+                            <h4>Analysis Results: <span id="result-url" class="text-break"></span></h4>
                             
-                            <div class="alert mt-3" id="result-alert">
-                                <h5 class="alert-heading" id="result-heading"></h5>
-                                <p id="result-message"></p>
-                            </div>
-                            
-                            <div class="mt-3">
-                                <p><strong>Confidence:</strong> <span id="result-confidence"></span>%</p>
-                                <p id="decision-factors" class="text-muted"></p>
+                            <div class="alert mt-3 d-flex align-items-center" id="result-alert">
+                                <div class="alert-icon me-3">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading mb-1" id="result-heading"></h5>
+                                    <p class="mb-0" id="result-message"></p>
+                                </div>
                             </div>
                             
                             <div class="mt-4">
-                                <h5>Feature Analysis</h5>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>Confidence Score:</strong>
+                                    <span class="text-primary fw-bold" id="result-confidence"></span>
+                                </div>
+                                <div class="confidence-meter">
+                                    <div class="confidence-fill"></div>
+
+                                </div>
+                                <p id="decision-factors" class="text-muted mt-2 small"></p>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <h5><i class="fas fa-microscope me-2"></i>Feature Analysis</h5>
                                 <div class="table-responsive">
-                                    <table class="table table-striped">
-                                        <thead>
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-light">
                                             <tr>
                                                 <th>Feature</th>
                                                 <th>Value</th>
@@ -98,39 +114,28 @@
                             $('#result-box').removeClass('d-none');
                             $('#result-url').text(response.url);
                             
-                            // Count good vs suspicious features
                             let goodFeatures = 0;
                             let suspiciousFeatures = 0;
                             let totalFeatures = 0;
                             let criticalIndicatorsFound = [];
                             
-                            // Define which features are "good" when they're 0 vs 1
                             const goodWhenZero = ['Have IP Address', 'Have @ Symbol', 'Redirection', 
                                                'HTTPS in Domain', 'TinyURL', 'Prefix/Suffix',
                                                'DNS Record', 'iFrame', 'Mouse Over', 'Right Click', 
                                                'Web Forwards'];
-                            
                             const goodWhenOne = ['URL Length', 'Web Traffic', 'Domain Age', 'Domain End'];
-                            
-                            // Define critical phishing indicators - these strongly suggest phishing
                             const criticalIndicators = ['Have IP Address', 'Have @ Symbol', 'TinyURL', 
                                                      'Prefix/Suffix', 'iFrame', 'Right Click'];
                             
-                            // Count good vs suspicious features and check for critical indicators
                             response.features.forEach(function(feature) {
-                                // Skip URL Depth as it's not binary
-                                if (feature.name === 'URL Depth') {
-                                    return;
-                                }
+                                if (feature.name === 'URL Depth') return;
                                 
                                 totalFeatures++;
                                 
-                                // Check if this is a critical indicator of phishing
                                 if (criticalIndicators.includes(feature.name) && feature.value === 1) {
                                     criticalIndicatorsFound.push(feature.name);
                                 }
                                 
-                                // Count good vs suspicious features
                                 if ((goodWhenZero.includes(feature.name) && feature.value === 0) || 
                                     (goodWhenOne.includes(feature.name) && feature.value === 1)) {
                                     goodFeatures++;
@@ -139,51 +144,45 @@
                                 }
                             });
                             
-                            // Calculate percentage of good features
                             const goodFeaturePercentage = (goodFeatures / totalFeatures) * 100;
-                            
-                            // Determine final verdict based on rules
-                            // ADVANCED LOGIC: More comprehensive decision making
                             let finalVerdict = response.is_phishing;
                             let overrideReason = "";
                             
-                            // Rule 1: If critical indicators are found, it's phishing
                             if (criticalIndicatorsFound.length > 0) {
                                 finalVerdict = true;
                                 overrideReason = `Critical phishing indicator(s) found: ${criticalIndicatorsFound.join(', ')}`;
                             }
-                            // Rule 2: If 85% or more features are good AND no critical indicators, it's legitimate
                             else if (goodFeaturePercentage >= 85) {
                                 finalVerdict = false;
                                 overrideReason = "High percentage of legitimate features (85%+) and no critical phishing indicators";
                             }
-                            // Rule 3: If between 70-85% features are good AND HTTPS is used AND no critical indicators, likely legitimate
                             else if (goodFeaturePercentage >= 70 && url.startsWith('https://') && criticalIndicatorsFound.length === 0) {
                                 finalVerdict = false;
                                 overrideReason = "Good percentage of legitimate features (70%+), uses HTTPS, and no critical phishing indicators";
                             }
                             
-                            // Set result content based on final verdict
+                            // Update UI elements
                             if (finalVerdict) {
                                 $('#result-alert').removeClass('alert-success').addClass('alert-danger');
                                 $('#result-heading').text('Potential Phishing Website Detected!');
                                 $('#result-message').text('This URL shows characteristics commonly associated with phishing websites.');
+                                $('.alert-icon i').removeClass('fa-check-circle').addClass('fa-exclamation-triangle');
                             } else {
                                 $('#result-alert').removeClass('alert-danger').addClass('alert-success');
                                 $('#result-heading').text('Legitimate Website');
                                 $('#result-message').text('This URL appears to be legitimate based on our analysis.');
+                                $('.alert-icon i').removeClass('fa-exclamation-triangle').addClass('fa-check-circle');
                             }
                             
                             $('#result-confidence').text(response.confidence);
+                            $('.confidence-fill').css('width', response.confidence + '%');
                             
-                            // Display decision factors if the model was overridden
                             if (overrideReason) {
                                 $('#decision-factors').text(`Decision factors: ${overrideReason}`);
                             } else {
                                 $('#decision-factors').text('Decision based on machine learning model prediction');
                             }
                             
-                            // Add feature analysis stats to the message
                             if (!finalVerdict) {
                                 $('#result-message').append(`<br><br>Feature analysis: ${goodFeatures} out of ${totalFeatures} features indicate a safe website (${goodFeaturePercentage.toFixed(1)}%).`);
                             } else {
@@ -194,40 +193,32 @@
                             const featureTable = $('#feature-table');
                             featureTable.empty();
                             
-                            // Display features with appropriate color coding
                             response.features.forEach(function(feature) {
                                 let rowClass = '';
-                                let isSuspicious = false;
+                                let valueClass = '';
                                 
-                                // Determine if feature indicates suspicious behavior
-                                if (goodWhenZero.includes(feature.name)) {
-                                    // For features that are good when 0, they are suspicious when 1
-                                    isSuspicious = (feature.value === 1);
-                                } else if (goodWhenOne.includes(feature.name)) {
-                                    // For features that are good when 1, they are suspicious when 0
-                                    isSuspicious = (feature.value === 0);
-                                }
-                                
-                                // Critical suspicious features get red background
-                                if (criticalIndicators.includes(feature.name) && isSuspicious) {
+                                if (criticalIndicators.includes(feature.name) && feature.value === 1) {
                                     rowClass = 'table-danger';
-                                }
-                                // Non-critical suspicious features get yellow/orange background
-                                else if (isSuspicious) {
-                                    rowClass = 'table-warning';
-                                }
-                                // Good features get green background
-                                else if (!isSuspicious && feature.name !== 'URL Depth') {
+                                    valueClass = 'badge-danger';
+                                } else if ((goodWhenZero.includes(feature.name) && feature.value === 0) || 
+                                        (goodWhenOne.includes(feature.name) && feature.value === 1)) {
                                     rowClass = 'table-success';
+                                    valueClass = 'badge-success';
                                 }
                                 
                                 const featureInterpretation = getFeatureInterpretation(feature.name, feature.value);
                                 
                                 featureTable.append(`
                                     <tr class="${rowClass}">
-                                        <td>${feature.name}</td>
-                                        <td>${feature.value}</td>
-                                        <td>${featureInterpretation}</td>
+                                        <td>
+                                            <span class="feature-badge ${valueClass}">${feature.name}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge rounded-pill bg-dark">${feature.value}</span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">${featureInterpretation}</small>
+                                        </td>
                                     </tr>
                                 `);
                             });
@@ -245,75 +236,25 @@
             
             function getFeatureInterpretation(name, value) {
                 const interpretations = {
-                    'Have IP Address': {
-                        '1': 'URL contains IP address (suspicious)',
-                        '0': 'URL uses domain name (good)'
-                    },
-                    'Have @ Symbol': {
-                        '1': 'URL contains @ symbol (suspicious)',
-                        '0': 'No @ symbol in URL (good)'
-                    },
-                    'URL Length': {
-                        '1': 'Normal URL length (good)',
-                        '0': 'Unusually long URL (suspicious)'
-                    },
-                    'URL Depth': {
-                        'interpretation': `Directory depth: ${value}`
-                    },
-                    'Redirection': {
-                        '1': 'URL contains redirection (suspicious)',
-                        '0': 'No redirection in URL (good)'
-                    },
-                    'HTTPS in Domain': {
-                        '1': 'HTTPS is in domain part (suspicious)',
-                        '0': 'Proper HTTPS usage (good)'
-                    },
-                    'TinyURL': {
-                        '1': 'Using URL shortening service (suspicious)',
-                        '0': 'Not using URL shortening (good)'
-                    },
-                    'Prefix/Suffix': {
-                        '1': 'Contains prefix/suffix separator (suspicious)',
-                        '0': 'No prefix/suffix separator (good)'
-                    },
-                    'DNS Record': {
-                        '1': 'No DNS record (suspicious)',
-                        '0': 'Valid DNS record exists (good)'
-                    },
-                    'Web Traffic': {
-                        '1': 'High website traffic (good)',
-                        '0': 'Low website traffic (suspicious)'
-                    },
-                    'Domain Age': {
-                        '1': 'Domain is older than 6 months (good)',
-                        '0': 'Recently created domain (suspicious)'
-                    },
-                    'Domain End': {
-                        '1': 'Domain expiry > 1 year (good)',
-                        '0': 'Domain expires soon (suspicious)'
-                    },
-                    'iFrame': {
-                        '1': 'Uses iFrames (suspicious)',
-                        '0': 'No iFrames (good)'
-                    },
-                    'Mouse Over': {
-                        '1': 'MouseOver changes status bar (suspicious)',
-                        '0': 'No MouseOver scripts (good)'
-                    },
-                    'Right Click': {
-                        '1': 'Right-click disabled (suspicious)',
-                        '0': 'Right-click enabled (good)'
-                    },
-                    'Web Forwards': {
-                        '1': 'Forwarding to other domains (suspicious)',
-                        '0': 'No forwarding (good)'
-                    }
+                    'Have IP Address': { '1': 'URL contains IP address (suspicious)', '0': 'URL uses domain name (good)' },
+                    'Have @ Symbol': { '1': 'URL contains @ symbol (suspicious)', '0': 'No @ symbol in URL (good)' },
+                    'URL Length': { '1': 'Normal URL length (good)', '0': 'Unusually long URL (suspicious)' },
+                    'URL Depth': { 'interpretation': `Directory depth: ${value}` },
+                    'Redirection': { '1': 'URL contains redirection (suspicious)', '0': 'No redirection in URL (good)' },
+                    'HTTPS in Domain': { '1': 'HTTPS is in domain part (suspicious)', '0': 'Proper HTTPS usage (good)' },
+                    'TinyURL': { '1': 'Using URL shortening service (suspicious)', '0': 'Not using URL shortening (good)' },
+                    'Prefix/Suffix': { '1': 'Contains prefix/suffix separator (suspicious)', '0': 'No prefix/suffix separator (good)' },
+                    'DNS Record': { '1': 'No DNS record (suspicious)', '0': 'Valid DNS record exists (good)' },
+                    'Web Traffic': { '1': 'High website traffic (good)', '0': 'Low website traffic (suspicious)' },
+                    'Domain Age': { '1': 'Domain is older than 6 months (good)', '0': 'Recently created domain (suspicious)' },
+                    'Domain End': { '1': 'Domain expiry > 1 year (good)', '0': 'Domain expires soon (suspicious)' },
+                    'iFrame': { '1': 'Uses iFrames (suspicious)', '0': 'No iFrames (good)' },
+                    'Mouse Over': { '1': 'MouseOver changes status bar (suspicious)', '0': 'No MouseOver scripts (good)' },
+                    'Right Click': { '1': 'Right-click disabled (suspicious)', '0': 'Right-click enabled (good)' },
+                    'Web Forwards': { '1': 'Forwarding to other domains (suspicious)', '0': 'No forwarding (good)' }
                 };
                 
-                if (name === 'URL Depth') {
-                    return interpretations[name].interpretation;
-                }
-                
+                if (name === 'URL Depth') return interpretations[name].interpretation;
                 return interpretations[name][value] || 'Unknown';
             }
         });
