@@ -1,3 +1,4 @@
+/templates/index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,49 +38,112 @@
                                 <span style="animation-delay: 0.2s"></span>
                                 <span style="animation-delay: 0.4s"></span>
                             </div>
-                            <p class="text-muted">Scanning URL for security threats...</p>
+                            <p>Analyzing URL, please wait...</p>
                         </div>
 
-                        <div id="result-box" class="mt-4 d-none">
-                            <h4>Analysis Results: <span id="result-url" class="text-break"></span></h4>
-                            
-                            <div class="alert mt-3 d-flex align-items-center" id="result-alert">
-                                <div class="alert-icon me-3">
-                                    <i class="fas fa-check-circle fa-2x"></i>
-                                </div>
-                                <div>
-                                    <h5 class="alert-heading mb-1" id="result-heading"></h5>
-                                    <p class="mb-0" id="result-message"></p>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <strong>Confidence Score:</strong>
-                                    <span class="text-primary fw-bold" id="result-confidence"></span>
-                                </div>
-                                <div class="confidence-meter">
-                                    <div class="confidence-fill"></div>
+                        <div id="error-alert" class="alert alert-danger d-none">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <span id="error-message"></span>
+                        </div>
 
+                        <div id="result-container" class="d-none">
+                            <div id="result-alert" class="alert mb-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="alert-icon me-3">
+                                        <i class="fas fa-3x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 id="result-heading" class="alert-heading mb-2"></h4>
+                                        <p id="result-message" class="mb-0"></p>
+                                        <div id="threat-description" class="mt-2 fw-bold text-danger d-none"></div>
+                                        <div id="source-info" class="mt-2 text-muted fst-italic small"></div>
+                                    </div>
                                 </div>
-                                <p id="decision-factors" class="text-muted mt-2 small"></p>
                             </div>
-                            
-                            <div class="mt-4">
-                                <h5><i class="fas fa-microscope me-2"></i>Feature Analysis</h5>
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Feature</th>
-                                                <th>Value</th>
-                                                <th>Interpretation</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="feature-table">
-                                            <!-- Features will be inserted here -->
-                                        </tbody>
-                                    </table>
+
+                            <!-- Feedback section -->
+                            <div id="feedback-container" class="card mb-4">
+                                <div class="card-body">
+                                    <h5><i class="fas fa-question-circle me-2"></i>Is this result correct?</h5>
+                                    
+                                    <div class="mt-3">
+                                        <div class="d-flex align-items-center">
+                                            <button id="feedback-yes" class="btn btn-outline-success me-3">
+                                                <i class="fas fa-thumbs-up me-2"></i>Yes, it's correct
+                                            </button>
+                                            <button id="feedback-no" class="btn btn-outline-danger">
+                                                <i class="fas fa-thumbs-down me-2"></i>No, it's incorrect
+                                            </button>
+                                        </div>
+                                        
+                                        <div id="trust-container" class="mt-3 d-none">
+                                            <div class="alert alert-info">
+                                                <p><i class="fas fa-info-circle me-2"></i>This URL was classified as potentially malicious, but you indicated it's safe.</p>
+                                                <p class="mb-2">Would you like to add this domain to our trusted domains list to prevent false positives?</p>
+                                                <button id="add-trusted" class="btn btn-primary">
+                                                    <i class="fas fa-shield-alt me-2"></i>Add to Trusted Domains
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="feedback-thanks" class="alert alert-success mt-3 d-none">
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            <span>Thank you for your feedback!</span>
+                                        </div>
+                                        
+                                        <div id="feedback-error" class="alert alert-danger mt-3 d-none">
+                                            <i class="fas fa-exclamation-circle me-2"></i>
+                                            <span id="feedback-error-message">An error occurred while processing your feedback.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- End feedback section -->
+
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    <h5><i class="fas fa-info-circle me-2"></i>Analysis Details</h5>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-3 fw-bold">URL:</div>
+                                        <div class="col-md-9 text-break" id="result-url"></div>
+                                    </div>
+                                    
+                                    <div class="row mt-2">
+                                        <div class="col-md-3 fw-bold">Confidence:</div>
+                                        <div class="col-md-9">
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar confidence-fill" role="progressbar"></div>
+                                            </div>
+                                            <div class="text-end mt-1"><span id="result-confidence"></span>%</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-2">
+                                        <div class="col-12">
+                                            <p id="decision-factors" class="fst-italic text-muted mt-2"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="mb-3"><i class="fas fa-list-check me-2"></i>Feature Analysis</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Feature</th>
+                                                    <th>Value</th>
+                                                    <th>Indication</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="feature-table">
+                                                <!-- Features will be inserted here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -91,173 +155,346 @@
 
     <script>
         $(document).ready(function() {
+            console.log('Page loaded, feedback functionality ready');
+            
+            // Force show feedback container when debugging
+            const debugMode = true;
+            
+            // Global variables to store current result
+            let currentUrl = '';
+            let currentIsPhishing = false;
+            
+            // Form submission
             $('#url-form').on('submit', function(e) {
                 e.preventDefault();
                 
-                // Show loading
+                let url = $('#url').val().trim();
+                if (!url) {
+                    showError('Please enter a URL to analyze');
+                    return;
+                }
+                
+                // Hide previous results and errors
+                $('#result-container').addClass('d-none');
+                $('#error-alert').addClass('d-none');
+                $('#feedback-thanks').addClass('d-none');
+                $('#feedback-error').addClass('d-none');
+                $('#trust-container').addClass('d-none');
+                
+                // Show loading indicator
                 $('#loading').removeClass('d-none');
-                $('#result-box').addClass('d-none');
                 $('#submit-btn').prop('disabled', true);
                 
-                const url = $('#url').val();
-                
+                // Send request to server
                 $.ajax({
-                    url: '/predict',
                     type: 'POST',
-                    data: { url: url },
+                    url: '/predict',
+                    data: {url: url},
                     success: function(response) {
-                        // Hide loading
                         $('#loading').addClass('d-none');
                         $('#submit-btn').prop('disabled', false);
                         
                         if (response.success) {
-                            $('#result-box').removeClass('d-none');
-                            $('#result-url').text(response.url);
+                            // Store current result for feedback handling
+                            currentUrl = response.url;
+                            currentIsPhishing = response.is_phishing;
                             
-                            let goodFeatures = 0;
-                            let suspiciousFeatures = 0;
-                            let totalFeatures = 0;
-                            let criticalIndicatorsFound = [];
-                            
-                            const goodWhenZero = ['Have IP Address', 'Have @ Symbol', 'Redirection', 
-                                               'HTTPS in Domain', 'TinyURL', 'Prefix/Suffix',
-                                               'DNS Record', 'iFrame', 'Mouse Over', 'Right Click', 
-                                               'Web Forwards'];
-                            const goodWhenOne = ['URL Length', 'Web Traffic', 'Domain Age', 'Domain End'];
-                            const criticalIndicators = ['Have IP Address', 'Have @ Symbol', 'TinyURL', 
-                                                     'Prefix/Suffix', 'iFrame', 'Right Click'];
-                            
-                            response.features.forEach(function(feature) {
-                                if (feature.name === 'URL Depth') return;
-                                
-                                totalFeatures++;
-                                
-                                if (criticalIndicators.includes(feature.name) && feature.value === 1) {
-                                    criticalIndicatorsFound.push(feature.name);
-                                }
-                                
-                                if ((goodWhenZero.includes(feature.name) && feature.value === 0) || 
-                                    (goodWhenOne.includes(feature.name) && feature.value === 1)) {
-                                    goodFeatures++;
-                                } else {
-                                    suspiciousFeatures++;
-                                }
-                            });
-                            
-                            const goodFeaturePercentage = (goodFeatures / totalFeatures) * 100;
-                            let finalVerdict = response.is_phishing;
-                            let overrideReason = "";
-                            
-                            if (criticalIndicatorsFound.length > 0) {
-                                finalVerdict = true;
-                                overrideReason = `Critical phishing indicator(s) found: ${criticalIndicatorsFound.join(', ')}`;
-                            }
-                            else if (goodFeaturePercentage >= 85) {
-                                finalVerdict = false;
-                                overrideReason = "High percentage of legitimate features (85%+) and no critical phishing indicators";
-                            }
-                            else if (goodFeaturePercentage >= 70 && url.startsWith('https://') && criticalIndicatorsFound.length === 0) {
-                                finalVerdict = false;
-                                overrideReason = "Good percentage of legitimate features (70%+), uses HTTPS, and no critical phishing indicators";
-                            }
-                            
-                            // Update UI elements
-                            if (finalVerdict) {
-                                $('#result-alert').removeClass('alert-success').addClass('alert-danger');
-                                $('#result-heading').text('Potential Phishing Website Detected!');
-                                $('#result-message').text('This URL shows characteristics commonly associated with phishing websites.');
-                                $('.alert-icon i').removeClass('fa-check-circle').addClass('fa-exclamation-triangle');
-                            } else {
-                                $('#result-alert').removeClass('alert-danger').addClass('alert-success');
-                                $('#result-heading').text('Legitimate Website');
-                                $('#result-message').text('This URL appears to be legitimate based on our analysis.');
-                                $('.alert-icon i').removeClass('fa-exclamation-triangle').addClass('fa-check-circle');
-                            }
-                            
-                            $('#result-confidence').text(response.confidence);
-                            $('.confidence-fill').css('width', response.confidence + '%');
-                            
-                            if (overrideReason) {
-                                $('#decision-factors').text(`Decision factors: ${overrideReason}`);
-                            } else {
-                                $('#decision-factors').text('Decision based on machine learning model prediction');
-                            }
-                            
-                            if (!finalVerdict) {
-                                $('#result-message').append(`<br><br>Feature analysis: ${goodFeatures} out of ${totalFeatures} features indicate a safe website (${goodFeaturePercentage.toFixed(1)}%).`);
-                            } else {
-                                $('#result-message').append(`<br><br>Feature analysis: ${suspiciousFeatures} out of ${totalFeatures} features indicate a potentially suspicious website (${(100-goodFeaturePercentage).toFixed(1)}%).`);
-                            }
-                            
-                            // Populate feature table
-                            const featureTable = $('#feature-table');
-                            featureTable.empty();
-                            
-                            response.features.forEach(function(feature) {
-                                let rowClass = '';
-                                let valueClass = '';
-                                
-                                if (criticalIndicators.includes(feature.name) && feature.value === 1) {
-                                    rowClass = 'table-danger';
-                                    valueClass = 'badge-danger';
-                                } else if ((goodWhenZero.includes(feature.name) && feature.value === 0) || 
-                                        (goodWhenOne.includes(feature.name) && feature.value === 1)) {
-                                    rowClass = 'table-success';
-                                    valueClass = 'badge-success';
-                                }
-                                
-                                const featureInterpretation = getFeatureInterpretation(feature.name, feature.value);
-                                
-                                featureTable.append(`
-                                    <tr class="${rowClass}">
-                                        <td>
-                                            <span class="feature-badge ${valueClass}">${feature.name}</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge rounded-pill bg-dark">${feature.value}</span>
-                                        </td>
-                                        <td>
-                                            <small class="text-muted">${featureInterpretation}</small>
-                                        </td>
-                                    </tr>
-                                `);
-                            });
+                            displayResult(response);
                         } else {
-                            alert('Error: ' + response.error);
+                            showError(response.error || 'An error occurred during analysis');
                         }
                     },
-                    error: function() {
+                    error: function(xhr, status, error) {
                         $('#loading').addClass('d-none');
                         $('#submit-btn').prop('disabled', false);
-                        alert('Server error occurred. Please try again later.');
+                        showError('Server error: ' + error);
                     }
                 });
             });
             
-            function getFeatureInterpretation(name, value) {
-                const interpretations = {
-                    'Have IP Address': { '1': 'URL contains IP address (suspicious)', '0': 'URL uses domain name (good)' },
-                    'Have @ Symbol': { '1': 'URL contains @ symbol (suspicious)', '0': 'No @ symbol in URL (good)' },
-                    'URL Length': { '1': 'Normal URL length (good)', '0': 'Unusually long URL (suspicious)' },
-                    'URL Depth': { 'interpretation': `Directory depth: ${value}` },
-                    'Redirection': { '1': 'URL contains redirection (suspicious)', '0': 'No redirection in URL (good)' },
-                    'HTTPS in Domain': { '1': 'HTTPS is in domain part (suspicious)', '0': 'Proper HTTPS usage (good)' },
-                    'TinyURL': { '1': 'Using URL shortening service (suspicious)', '0': 'Not using URL shortening (good)' },
-                    'Prefix/Suffix': { '1': 'Contains prefix/suffix separator (suspicious)', '0': 'No prefix/suffix separator (good)' },
-                    'DNS Record': { '1': 'No DNS record (suspicious)', '0': 'Valid DNS record exists (good)' },
-                    'Web Traffic': { '1': 'High website traffic (good)', '0': 'Low website traffic (suspicious)' },
-                    'Domain Age': { '1': 'Domain is older than 6 months (good)', '0': 'Recently created domain (suspicious)' },
-                    'Domain End': { '1': 'Domain expiry > 1 year (good)', '0': 'Domain expires soon (suspicious)' },
-                    'iFrame': { '1': 'Uses iFrames (suspicious)', '0': 'No iFrames (good)' },
-                    'Mouse Over': { '1': 'MouseOver changes status bar (suspicious)', '0': 'No MouseOver scripts (good)' },
-                    'Right Click': { '1': 'Right-click disabled (suspicious)', '0': 'Right-click enabled (good)' },
-                    'Web Forwards': { '1': 'Forwarding to other domains (suspicious)', '0': 'No forwarding (good)' }
-                };
+            // Feedback - Yes button (correct)
+            $('#feedback-yes').on('click', function() {
+                console.log('User clicked: Result is correct');
+                $('#trust-container').addClass('d-none');
+                $('#feedback-error').addClass('d-none');
+                $('#feedback-thanks').removeClass('d-none');
+            });
+            
+            // Feedback - No button (incorrect)
+            $('#feedback-no').on('click', function() {
+                console.log('User clicked: Result is incorrect');
+                $('#feedback-error').addClass('d-none');
                 
-                if (name === 'URL Depth') return interpretations[name].interpretation;
-                return interpretations[name][value] || 'Unknown';
+                // If the result was phishing but user says it's incorrect,
+                // offer to add to trusted domains
+                if (currentIsPhishing) {
+                    console.log('URL was marked as phishing but user disagrees, showing trust option');
+                    $('#trust-container').removeClass('d-none');
+                } else {
+                    // If the result was legitimate but user says it's incorrect,
+                    // just say thanks (since we don't have a way to flag as phishing yet)
+                    console.log('URL was marked as legitimate but user disagrees, no action available');
+                    $('#feedback-thanks').removeClass('d-none');
+                }
+            });
+            
+            // Add to trusted domains button
+            $('#add-trusted').on('click', function() {
+                console.log('User clicked: Add to trusted domains');
+                $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Processing...');
+                
+                $.ajax({
+                    type: 'POST',
+                    url: '/api/trust',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ url: currentUrl }),
+                    success: function(response) {
+                        console.log('API response:', response);
+                        if (response.success) {
+                            $('#trust-container').addClass('d-none');
+                            $('#feedback-thanks').removeClass('d-none').html('<i class="fas fa-check-circle me-2"></i>Domain added to trusted list! Future checks will recognize it as safe.');
+                        } else {
+                            $('#feedback-error').removeClass('d-none');
+                            $('#feedback-error-message').text(response.error || 'Failed to add domain to trusted list');
+                        }
+                        $('#add-trusted').prop('disabled', false).html('<i class="fas fa-shield-alt me-2"></i>Add to Trusted Domains');
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('API error:', error);
+                        $('#feedback-error').removeClass('d-none');
+                        $('#feedback-error-message').text('Server error occurred while adding domain to trusted list');
+                        $('#add-trusted').prop('disabled', false).html('<i class="fas fa-shield-alt me-2"></i>Add to Trusted Domains');
+                    }
+                });
+            });
+            
+            function displayResult(response) {
+                console.log('Displaying result:', response);
+                
+                // Set URL
+                $('#result-url').text(response.url);
+                
+                // Calculate features
+                let goodFeatures = 0;
+                let suspiciousFeatures = 0;
+                let totalFeatures = 0;
+                let criticalIndicatorsFound = [];
+                
+                // Only process features if they exist
+                if (response.features && response.features.length > 0) {
+                    // Define which features are good when 0 or 1
+                    const goodWhenZero = ['Have IP Address', 'Have @ Symbol', 'URL Length', 'Redirection', 
+                                        'HTTPS in Domain', 'TinyURL', 'Prefix/Suffix', 'iFrame', 
+                                        'Mouse Over', 'Right Click', 'Web Forwards'];
+                    const goodWhenOne = ['URL Length', 'Web Traffic', 'Domain Age', 'Domain End'];
+                    const criticalIndicators = ['Have IP Address', 'Have @ Symbol', 'TinyURL', 
+                                            'Prefix/Suffix', 'iFrame', 'Right Click'];
+                    
+                    response.features.forEach(function(feature) {
+                        if (feature.name === 'URL Depth') return;
+                        
+                        totalFeatures++;
+                        
+                        if (criticalIndicators.includes(feature.name) && feature.value === 1) {
+                            criticalIndicatorsFound.push(feature.name);
+                        }
+                        
+                        if ((goodWhenZero.includes(feature.name) && feature.value === 0) || 
+                            (goodWhenOne.includes(feature.name) && feature.value === 1)) {
+                            goodFeatures++;
+                        } else {
+                            suspiciousFeatures++;
+                        }
+                    });
+                }
+                
+                const goodFeaturePercentage = totalFeatures > 0 ? (goodFeatures / totalFeatures) * 100 : 0;
+                let finalVerdict = response.is_phishing;
+                let overrideReason = "";
+                
+                // IMPORTANT: Explicitly ensure feedback container is visible by default
+                $('#feedback-container').removeClass('d-none');
+                console.log('Made feedback container visible');
+                
+                // Check if this is already a trusted domain
+                if (response.trusted) {
+                    finalVerdict = false;
+                    overrideReason = "Domain is in trusted list";
+                    
+                    // Hide feedback for trusted domains
+                    if (!debugMode) {
+                        $('#feedback-container').addClass('d-none');
+                        console.log('Domain is trusted - hiding feedback container');
+                    }
+                } 
+                // Check if this is a Safe Browsing API detection
+                else if (response.source && response.source.includes('Google Safe Browsing')) {
+                    finalVerdict = true;
+                    overrideReason = "Google Safe Browsing API has detected this as a dangerous website";
+                    
+                    // Display threat description if available
+                    if (response.threat_description) {
+                        $('#threat-description').text("Detected threats: " + response.threat_description).removeClass('d-none');
+                    } else {
+                        $('#threat-description').addClass('d-none');
+                    }
+                } else {
+                    // Use the regular feature-based decision logic
+                    $('#threat-description').addClass('d-none');
+                    
+                    if (criticalIndicatorsFound.length > 0) {
+                        finalVerdict = true;
+                        overrideReason = `Critical phishing indicator(s) found: ${criticalIndicatorsFound.join(', ')}`;
+                    }
+                    else if (goodFeaturePercentage >= 85) {
+                        finalVerdict = false;
+                        overrideReason = "High percentage of legitimate features (85%+) and no critical phishing indicators";
+                    }
+                    else if (goodFeaturePercentage >= 70 && response.url.startsWith('https://') && criticalIndicatorsFound.length === 0) {
+                        finalVerdict = false;
+                        overrideReason = "Good percentage of legitimate features (70%+), uses HTTPS, and no critical phishing indicators";
+                    }
+                }
+                
+                // Display source information
+                $('#source-info').text('Source: ' + (response.source || 'Machine Learning Model'));
+                
+                // Update UI elements
+                if (finalVerdict) {
+                    $('#result-alert').removeClass('alert-success').addClass('alert-danger');
+                    $('#result-heading').text('Potential Phishing Website Detected!');
+                    $('#result-message').text('This URL shows characteristics commonly associated with phishing websites.');
+                    $('.alert-icon i').removeClass('fa-check-circle').addClass('fa-exclamation-triangle');
+                } else {
+                    $('#result-alert').removeClass('alert-danger').addClass('alert-success');
+                    $('#result-heading').text('Legitimate Website');
+                    $('#result-message').text('This URL appears to be legitimate based on our analysis.');
+                    $('.alert-icon i').removeClass('fa-exclamation-triangle').addClass('fa-check-circle');
+                }
+                
+                $('#result-confidence').text(response.confidence);
+                $('.confidence-fill').css('width', response.confidence + '%');
+                
+                if (overrideReason) {
+                    $('#decision-factors').text(`Decision factors: ${overrideReason}`);
+                } else {
+                    $('#decision-factors').text('Decision based on machine learning model prediction');
+                }
+                
+                // Only show feature analysis if features are available
+                if (response.features && response.features.length > 0) {
+                    if (!finalVerdict) {
+                        $('#result-message').append(`<br><br>Feature analysis: ${goodFeatures} out of ${totalFeatures} features indicate a safe website (${goodFeaturePercentage.toFixed(1)}%).`);
+                    } else {
+                        $('#result-message').append(`<br><br>Feature analysis: ${suspiciousFeatures} out of ${totalFeatures} features indicate a potentially suspicious website (${(100-goodFeaturePercentage).toFixed(1)}%).`);
+                    }
+                    
+                    // Populate feature table
+                    $('#feature-table').empty();
+                    
+                    response.features.forEach(function(feature) {
+                        let row = $('<tr></tr>');
+                        
+                        // Create feature name cell
+                        let nameCell = $('<td></td>').text(feature.name);
+                        
+                        // Create value cell
+                        let valueText = feature.value;
+                        if (feature.value === 0 || feature.value === 1) {
+                            valueText = feature.value === 1 ? 'Yes' : 'No';
+                        }
+                        let valueCell = $('<td></td>').text(valueText);
+                        
+                        // Create indication cell
+                        let indication = '';
+                        let indicationClass = '';
+                        
+                        // Determine indication based on feature and value
+                        switch(feature.name) {
+                            case 'Have IP Address':
+                            case 'Have @ Symbol':
+                            case 'URL Length':
+                            case 'Redirection':
+                            case 'HTTPS in Domain':
+                            case 'TinyURL':
+                            case 'Prefix/Suffix':
+                            case 'iFrame':
+                            case 'Mouse Over':
+                            case 'Right Click':
+                            case 'Web Forwards':
+                                if (feature.value === 1) {
+                                    indication = 'Suspicious';
+                                    indicationClass = 'text-danger';
+                                } else {
+                                    indication = 'Safe';
+                                    indicationClass = 'text-success';
+                                }
+                                break;
+                            case 'Web Traffic':
+                            case 'Domain Age':
+                            case 'Domain End':
+                                if (feature.value === 1) {
+                                    indication = 'Safe';
+                                    indicationClass = 'text-success';
+                                } else {
+                                    indication = 'Suspicious';
+                                    indicationClass = 'text-danger';
+                                }
+                                break;
+                            default:
+                                indication = 'Neutral';
+                                indicationClass = 'text-muted';
+                        }
+                        
+                        let indicationCell = $('<td></td>').addClass(indicationClass).text(indication);
+                        
+                        row.append(nameCell, valueCell, indicationCell);
+                        $('#feature-table').append(row);
+                    });
+                }
+                
+                // Show result container
+                $('#result-container').removeClass('d-none');
+                
+                // Check if feedback container is hidden by any CSS
+                setTimeout(function() {
+                    console.log('Feedback container visibility check:', $('#feedback-container').is(':visible') ? 'Visible' : 'Hidden');
+                    console.log('Feedback container has d-none class:', $('#feedback-container').hasClass('d-none'));
+                    
+                    // Force display just in case something is hiding it
+                    if (debugMode && !$('#feedback-container').is(':visible')) {
+                        $('#feedback-container').removeClass('d-none').css('display', 'block');
+                        console.log('Forced feedback container visibility');
+                    }
+                }, 500);
+            }
+            
+            function showError(message) {
+                $('#error-message').text(message);
+                $('#error-alert').removeClass('d-none');
             }
         });
+    </script>
+
+    <!-- Debugging script to ensure feedback container is visible -->
+    <script>
+        // Add click handler to force show feedback container (for debugging)
+        $(document).on('click', '#result-container', function(e) {
+            if (!$(e.target).closest('button').length) {
+                if (!$('#feedback-container').is(':visible')) {
+                    console.log('Debug: Forcing feedback container visibility after click');
+                    $('#feedback-container').removeClass('d-none').css('display', 'block');
+                }
+            }
+        });
+        
+        // Check container visibility after some time
+        setTimeout(function() {
+            if ($('#result-container').is(':visible') && !$('#feedback-container').is(':visible')) {
+                console.log('Debug: Results shown but feedback hidden. Fixing...');
+                $('#feedback-container').removeClass('d-none').css('display', 'block');
+            }
+        }, 3000);
     </script>
 </body>
 </html>
