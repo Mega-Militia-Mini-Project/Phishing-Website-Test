@@ -30,7 +30,15 @@ DEFAULT_TRUSTED_DOMAINS = {
     "leetcode.com",
     "medium.com",
     "udemy.com",
-    "coursera.org"
+    "coursera.org",
+    "hotstar.com",
+    "spotify.com",
+    "whatsapp.com",
+    "telegram.org",
+    "reddit.com",
+    "quora.com",
+    "pinterest.com",
+    "rbunagpur.in",
 }
 
 # Global variable to hold the trusted domains set
